@@ -60,7 +60,7 @@ end
     owner 'root'
     group 'root'
     variables(:go_agent_instance => suffix)
-    subscribes :create, "package[go-agent]"
+    subscribes :create, "package[go-agent]", :immediately
     action :nothing
   end
 
@@ -75,7 +75,7 @@ end
       # TODO - Fix Java Home
       :java_home => "/usr/lib/jvm/default-java",
       :work_dir => "/var/lib/go-agent#{suffix}")
-    subscribes :create, "template[/etc/init.d/go-agent#{suffix}]"
+    subscribes :create, "template[/etc/init.d/go-agent#{suffix}]", :immediately
     action :nothing
   end
   
@@ -85,16 +85,24 @@ end
     owner 'go'
     group 'go'
     variables(:go_agent_instance => suffix)
-    subscribes :create, "template[/etc/init.d/go-agent#{suffix}]"
+    subscribes :create, "template[/etc/init.d/go-agent#{suffix}]", :immediately
     action :nothing
   end
 
   log "Registering agent#{suffix} with autoregister key of " + autoregister_key
+  directory "/var/lib/go-agent#{suffix}" do
+    mode '0755'
+    owner 'go'
+    group 'go'
+    subscribes :create, "template[/etc/init.d/go-agent#{suffix}]", :immediately
+    recursive true
+    action :nothing
+  end
   directory "/var/lib/go-agent#{suffix}/config" do
     mode '0755'
     owner 'go'
     group 'go'
-    subscribes :create, "template[/etc/init.d/go-agent#{suffix}]"
+    subscribes :create, "directory[/var/lib/go-agent#{suffix}]", :immediately
     recursive true
     action :nothing
   end
@@ -105,11 +113,10 @@ end
     mode 0644
     variables(:autoregister_key => autoregister_key,
             :agent_resources => "#{node[:os]}, #{node[:platform]},#{node[:platform]}-#{node[:platform_version]}")
-    subscribes :create, "directory[/var/lib/go-agent#{suffix}/config]"
+    subscribes :create, "directory[/var/lib/go-agent#{suffix}/config]", :immediately
     action :nothing
   end
   
-
   service "go-agent#{suffix}" do
     supports :status => true, :restart => true, :reload => true, :start => true
     action [:enable, :nothing]
